@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#15151a">
+<title>FocusFlow — One thing at a time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15151a;
+    --ink-2:#1b1b22;
+    --ink-3:#222229;
+    --paper:#f2efe9;
+    --paper-dim:#a8a6a0;
+    --slate:#6b6b76;
+    --slate-line: rgba(242,239,233,0.09);
+    --amber:#e8954a;
+    --amber-dim: rgba(232,149,74,0.16);
+    --green:#7a9b76;
+    --red:#b9685b;
+    --serif: 'Fraunces', serif;
+    --sans: 'Inter', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:var(--sans);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
+  }
+
+  button{font-family:inherit; cursor:pointer;}
+  button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:2px;
+  }
+
+  /* ---------- Shell ---------- */
+  .app{
+    max-width:920px;
+    margin:0 auto;
+    padding:32px 24px 80px;
+  }
+
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:40px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .brand{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:20px;
+    letter-spacing:0.01em;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 0 4px var(--amber-dim);
+  }
+  .topbar-right{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    font-size:13px;
+    color:var(--slate);
+    font-family:var(--mono);
+  }
+  .streak{
+    display:flex; align-items:center; gap:6px;
+    color: var(--paper-dim);
+  }
+  .streak strong{ color:var(--amber); font-weight:600; }
+
+  /* ---------- Layout: stage + sidebar ---------- */
+  .layout{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:28px;
+  }
+
+  /* ============ FOCUS STAGE ============ */
+  .stage{
+    background: var(--ink-2);
+    border:1px solid var(--slate-line);
+    border-radius:20px;
+    padding:48px 36px;
+    position:relative;
+    overflow:hidden;
+    transition: background 0.6s ease;
+  }
+  .stage.is-active{
+    background: linear-gradient(180deg, #1c1813 0%, var(--ink-2) 55%);
+  }
+
+  .stage-eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--slate);
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .mode-pill-row{ display:flex; gap:6px; }
+  .mode-pill{
+    background:transparent;
+    border:1px solid var(--slate-line);
+    color:var(--slate);
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.04em;
+    padding:5px 10px;
+    border-radius:99px;
+    transition: all 0.2s ease;
+  }
+  .mode-pill.active{
+    border-color:var(--amber);
+    color:var(--amber);
+    background:var(--amber-dim);
+  }
+  .mode-pill:hover:not(.active){ color:var(--paper-dim); border-color:var(--paper-dim); }
+
+  .stage-body{
+    display:flex;
+    gap:40px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  /* the ring */
+  .ring-wrap{
+    position:relative;
+    width:220px;
+    height:220px;
+    flex-shrink:0;
+    margin:0 auto;
+  }
+  .ring-wrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .ring-bg{ stroke:var(--slate-line); fill:none; stroke-width:3; }
+  .ring-fg{
+    stroke:var(--amber);
+    fill:none;
+    stroke-width:3;
+    stroke-linecap:round;
+    transition: stroke-dashoffset 1s linear;
+  }
+  .ring-fg.break{ stroke:var(--green); }
+
+  .ring-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+    gap:4px;
+  }
+  .ring-time{
+    font-family:var(--mono);
+    font-size:40px;
+    font-weight:500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing:0.01em;
+  }
+  .ring-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--slate);
+  }
+
+  .breathing{
+    animation: breathe 5s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{ filter:drop-shadow(0 0 0px var(--amber)); }
+    50%{ filter:drop-shadow(0 0 9px var(--amber-dim)); }
+  }
+
+  /* current task text */
+  .current-task{
+    flex:1;
+    min-width:240px;
+  }
+  .current-task-eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:10px;
+  }
+  .current-task-title{
+    font-family:var(--serif);
+    font-size:clamp(24px,3.4vw,34px);
+    font-weight:400;
+    line-height:1.25;
+    margin:0 0 22px;
+    color:var(--paper);
+  }
+  .current-task-title.empty{
+    color:var(--paper-dim);
+    font-style:italic;
+  }
+
+  .stage-controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .btn{
+    border:none;
+    border-radius:10px;
+    padding:12px 20px;
+    font-size:14px;
+    font-weight:600;
+    font-family:var(--sans);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn-primary{ background:var(--amber); color:#1a1208; }
+  .btn-primary:hover{ opacity:0.9; }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid var(--slate-line);
+    color:var(--paper-dim);
+  }
+  .btn-ghost:hover{ border-color:var(--paper-dim); color:var(--paper); }
+  .btn-danger{ background:transparent; border:1px solid rgba(185,104,91,0.4); color:var(--red); }
+  .btn-danger:hover{ background:rgba(185,104,91,0.1); }
+  .btn:disabled{ opacity:0.35; cursor:not-allowed; }
+
+  .duration-input{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:13px; color:var(--slate);
+  }
+  .duration-input input{
+    width:54px;
+    background:var(--ink-3);
+    border:1px solid var(--slate-line);
+    border-radius:6px;
+    color:var(--paper);
+    font-family:var(--mono);
+    font-size:13px;
+    padding:6px 8px;
+    text-align:center;
+  }
+
+  /* ============ GRID BELOW: tasks / metrics / log ============ */
+  .grid-2{
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:760px){
+    .grid-2{ grid-template-columns:1fr; }
+  }
+
+  .panel{
+    background:var(--ink-2);
+    border:1px solid var(--slate-line);
+    border-radius:16px;
+    padding:24px;
+  }
+  .panel-title{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--slate);
+    margin-bottom:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .panel-title .count{ color:var(--paper-dim); }
+
+  /* Today's three */
+  .priority-list{ list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .priority-row{
+    display:flex; align-items:center; gap:12px;
+    padding:11px 12px;
+    border-radius:10px;
+    border:1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .priority-row:hover{ background:var(--ink-3); }
+  .priority-row.is-current{
+    border-color: var(--amber-dim);
+    background: rgba(232,149,74,0.06);
+  }
+  .priority-row.is-done .task-name{
+    color:var(--slate);
+    text-decoration: line-through;
+    text-decoration-color: var(--slate-line);
+  }
+  .check{
+    width:18px; height:18px; border-radius:50%;
+    border:1.5px solid var(--slate-line);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:transparent;
+    transition: all 0.15s ease;
+  }
+  .check.checked{ background:var(--green); border-color:var(--green); }
+  .check.checked::after{ content:'✓'; font-size:11px; color:#0e1a0d; font-weight:700; }
+  .task-name{
+    flex:1;
+    font-size:14.5px;
+    color:var(--paper);
+    background:none; border:none; color:inherit;
+    font-family:inherit;
+    padding:0;
+  }
+  .task-name:focus-visible{ outline:none; }
+  .pick-btn{
+    font-family:var(--mono); font-size:10px; letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--slate);
+    background:transparent; border:1px solid var(--slate-line);
+    border-radius:99px; padding:4px 9px;
+    flex-shrink:0;
+  }
+  .pick-btn:hover{ color:var(--amber); border-color:var(--amber-dim); }
+  .pick-btn.is-picked{ color:var(--amber); border-color:var(--amber); }
+  .del-btn{
+    background:none; border:none; color:var(--slate);
+    font-size:16px; line-height:1; padding:2px 4px; flex-shrink:0;
+  }
+  .del-btn:hover{ color:var(--red); }
+
+  .add-task-row{
+    display:flex; gap:8px;
+  }
+  .add-task-row input{
+    flex:1;
+    background:var(--ink-3);
+    border:1px solid var(--slate-line);
+    border-radius:10px;
+    color:var(--paper);
+    font-size:14px;
+    padding:11px 14px;
+    font-family:inherit;
+  }
+  .add-task-row input::placeholder{ color:var(--slate); }
+  .add-task-row button{
+    background:var(--ink-3);
+    border:1px solid var(--slate-line);
+    color:var(--paper-dim);
+    border-radius:10px;
+    padding:0 18px;
+    font-size:18px;
+  }
+  .add-task-row button:hover{ color:var(--amber); border-color:var(--amber-dim); }
+
+  .empty-note{
+    color:var(--slate);
+    font-size:13px;
+    font-style:italic;
+    padding:8px 0;
+  }
+
+  /* Metrics */
+  .metrics-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .metric{
+    background:var(--ink-3);
+    border-radius:12px;
+    padding:16px;
+  }
+  .metric-value{
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:500;
+    color:var(--paper);
+  }
+  .metric-label{
+    font-size:11.5px;
+    color:var(--slate);
+    margin-top:4px;
+  }
+
+  .sparkline-row{ display:flex; align-items:flex-end; gap:5px; height:46px; margin-bottom:6px; }
+  .spark-bar{
+    flex:1;
+    background: var(--slate-line);
+    border-radius:3px 3px 0 0;
+    min-height:3px;
+    transition: background 0.2s ease;
+  }
+  .spark-bar.has-data{ background: var(--amber-dim); }
+  .spark-bar.today{ background: var(--amber); }
+  .spark-labels{
+    display:flex; gap:5px;
+    font-family:var(--mono); font-size:9.5px; color:var(--slate);
+  }
+  .spark-labels span{ flex:1; text-align:center; }
+
+  /* Distraction log */
+  .distraction-row{
+    display:flex; gap:8px; margin-bottom:14px;
+  }
+  .distraction-row select{
+    background:var(--ink-3);
+    border:1px solid var(--slate-line);
+    color:var(--paper);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:13px;
+    font-family:inherit;
+    flex:1;
+  }
+  .distraction-row button{
+    background:var(--ink-3);
+    border:1px solid var(--slate-line);
+    color:var(--paper-dim);
+    border-radius:10px;
+    padding:0 16px;
+    font-size:13px;
+    font-weight:600;
+  }
+  .distraction-row button:hover{ color:var(--red); border-color:rgba(185,104,91,0.4); }
+
+  .distraction-count-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:var(--mono); font-size:12px; color:var(--slate);
+    border-top:1px solid var(--slate-line);
+    padding-top:12px;
+  }
+  .distraction-count-row strong{ color:var(--red); font-size:18px; font-family:var(--mono); }
+
+  /* Toast */
+  .toast{
+    position:fixed;
+    bottom:28px; left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--paper);
+    color:var(--ink);
+    padding:13px 22px;
+    border-radius:99px;
+    font-size:13.5px;
+    font-weight:600;
+    opacity:0;
+    pointer-events:none;
+    transition: all 0.35s cubic-bezier(.2,.9,.3,1.3);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    z-index:50;
+    white-space:nowrap;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  .footer-note{
+    text-align:center;
+    margin-top:48px;
+    color:var(--slate);
+    font-size:12px;
+    font-family:var(--mono);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> FocusFlow</div>
+    <div class="topbar-right">
+      <span id="todayDate"></span>
+      <span class="streak">🔥 <strong id="streakCount">0</strong> day streak</span>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- FOCUS STAGE -->
+    <div class="stage" id="stage">
+      <div class="stage-eyebrow">
+        <span id="stageEyebrowText">One thing at a time</span>
+        <div class="mode-pill-row">
+          <button class="mode-pill active" data-mode="focus" id="pillFocus">Focus · 50m</button>
+          <button class="mode-pill" data-mode="break" id="pillBreak">Break · 10m</button>
+        </div>
+      </div>
+
+      <div class="stage-body">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 220 220">
+            <circle class="ring-bg" cx="110" cy="110" r="100"></circle>
+            <circle class="ring-fg" id="ringFg" cx="110" cy="110" r="100"
+              stroke-dasharray="628.3" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-time" id="ringTime">50:00</div>
+            <div class="ring-label" id="ringLabel">ready</div>
+          </div>
+        </div>
+
+        <div class="current-task">
+          <div class="current-task-eyebrow">Current focus</div>
+          <p class="current-task-title empty" id="currentTaskTitle">Choose one task below to begin</p>
+
+          <div class="stage-controls">
+            <button class="btn btn-primary" id="startBtn">Start focus session</button>
+            <button class="btn btn-ghost" id="pauseBtn" style="display:none;">Pause</button>
+            <button class="btn btn-ghost" id="resumeBtn" style="display:none;">Resume</button>
+            <button class="btn btn-danger" id="stopBtn" style="display:none;">Stop</button>
+            <button class="btn btn-ghost" id="skipBreakBtn" style="display:none;">Skip break</button>
+            <div class="duration-input" id="durationInputWrap">
+              <span>min</span>
+              <input type="number" id="durationInput" value="50" min="1" max="180">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- TASKS -->
+      <div class="panel">
+        <div class="panel-title">
+          <span>Today's priorities</span>
+          <span class="count" id="taskCountLabel">0 of 0 done</span>
+        </div>
+        <ul class="priority-list" id="priorityList"></ul>
+        <p class="empty-note" id="taskEmptyNote" style="display:none;">No tasks yet. Add today's first priority below.</p>
+        <div class="add-task-row">
+          <input type="text" id="newTaskInput" placeholder="Add a task…" maxlength="120">
+          <button id="addTaskBtn" aria-label="Add task">+</button>
+        </div>
+      </div>
+
+      <!-- METRICS + DISTRACTIONS -->
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <div class="panel">
+          <div class="panel-title"><span>Today's summary</span></div>
+          <div class="metrics-grid">
+            <div class="metric">
+              <div class="metric-value" id="metricFocusHours">0h 0m</div>
+              <div class="metric-label">Focus time</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="metricSessions">0</div>
+              <div class="metric-label">Sessions completed</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="metricTasksDone">0</div>
+              <div class="metric-label">Tasks completed</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value" id="metricScore">0%</div>
+              <div class="metric-label">Productivity score</div>
+            </div>
+          </div>
+          <div class="panel-title" style="margin-bottom:10px;"><span>Last 7 days · focus hours</span></div>
+          <div class="sparkline-row" id="sparkRow"></div>
+          <div class="spark-labels" id="sparkLabels"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title"><span>Distraction log</span></div>
+          <div class="distraction-row">
+            <select id="distractionSelect">
+              <option value="Phone">Phone</option>
+              <option value="Social media">Social media</option>
+              <option value="Noise">Noise / environment</option>
+              <option value="Colleague">Colleague / interruption</option>
+              <option value="Thoughts">Wandering thoughts</option>
+              <option value="Other">Other</option>
+            </select>
+            <button id="logDistractionBtn">Log</button>
+          </div>
+          <div class="distraction-count-row">
+            <span>Today</span>
+            <strong id="distractionTodayCount">0</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">Stored locally on this device · no accounts, no sync, no tracking</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Storage ---------------- */
+  const STORE_KEY = 'focusflow_state_v1';
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  };
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){ console.warn('FocusFlow: could not read storage', e); }
+    return {
+      tasks: [],            // {id, name, done}
+      currentTaskId: null,
+      days: {},             // dateStr -> {focusSeconds, sessions, tasksDone, distractions}
+      streak: 0,
+      lastActiveDay: null
+    };
+  }
+
+  function saveState(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }catch(e){ console.warn('FocusFlow: could not save storage', e); }
+  }
+
+  let state = loadState();
+
+  function ensureToday(){
+    const t = todayStr();
+    if(!state.days[t]){
+      state.days[t] = { focusSeconds:0, sessions:0, tasksDone:0, distractions:[] };
+    }
+    // reset task list daily? Per BRD this is a daily planner - but we keep tasks persistent
+    // across the day they were added; only the "today" bucket resets metrics, not the task list,
+    // since tasks may carry over. New day -> recompute streak.
+    if(state.lastActiveDay && state.lastActiveDay !== t){
+      recomputeStreakOnNewDay();
+    }
+    state.lastActiveDay = t;
+    return state.days[t];
+  }
+
+  function recomputeStreakOnNewDay(){
+    // If yesterday had at least 1 completed session or 1 completed task, streak continues, else resets.
+    const y = new Date(); y.setDate(y.getDate()-1);
+    const yStr = y.getFullYear()+'-'+String(y.getMonth()+1).padStart(2,'0')+'-'+String(y.getDate()).padStart(2,'0');
+    const yData = state.days[yStr];
+    if(yData && (yData.sessions > 0 || yData.tasksDone > 0)){
+      // keep streak as is (it was already incremented the day it happened)
+    } else {
+      state.streak = 0;
+    }
+  }
+
+  /* ---------------- Elements ---------------- */
+  const el = (id) => document.getElementById(id);
+  const stageEl = el('stage');
+  const ringFg = el('ringFg');
+  const ringTime = el('ringTime');
+  const ringLabel = el('ringLabel');
+  const currentTaskTitle = el('currentTaskTitle');
+  const startBtn = el('startBtn');
+  const pauseBtn = el('pauseBtn');
+  const resumeBtn = el('resumeBtn');
+  const stopBtn = el('stopBtn');
+  const skipBreakBtn = el('skipBreakBtn');
+  const durationInput = el('durationInput');
+  const durationInputWrap = el('durationInputWrap');
+  const pillFocus = el('pillFocus');
+  const pillBreak = el('pillBreak');
+  const stageEyebrowText = el('stageEyebrowText');
+  const priorityList = el('priorityList');
+  const taskEmptyNote = el('taskEmptyNote');
+  const taskCountLabel = el('taskCountLabel');
+  const newTaskInput = el('newTaskInput');
+  const addTaskBtn = el('addTaskBtn');
+  const toast = el('toast');
+  const streakCount = el('streakCount');
+  const todayDateEl = el('todayDate');
+
+  const RING_CIRCUMFERENCE = 2 * Math.PI * 100;
+
+  /* ---------------- Timer engine ---------------- */
+  let timer = {
+    mode: 'focus',          // 'focus' | 'break'
+    status: 'idle',         // 'idle' | 'running' | 'paused'
+    totalSeconds: 50*60,
+    remainingSeconds: 50*60,
+    intervalId: null,
+  };
+
+  function formatTime(sec){
+    sec = Math.max(0, Math.round(sec));
+    const m = Math.floor(sec/60);
+    const s = sec%60;
+    return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  }
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=> toast.classList.remove('show'), 2400);
+  }
+
+  function playAlert(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.value = 660;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.5);
+      o.start();
+      o.stop(ctx.currentTime+0.55);
+      setTimeout(()=>{
+        const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.type='sine'; o2.frequency.value = 880;
+        g2.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g2.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime+0.02);
+        g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.5);
+        o2.start(); o2.stop(ctx.currentTime+0.55);
+      }, 260);
+    }catch(e){ /* audio not available, ignore */ }
+  }
+
+  function setMode(mode){
+    if(timer.status === 'running') return; // don't allow mode switch mid-session
+    timer.mode = mode;
+    const mins = mode === 'focus' ? parseInt(durationInput.value || '50', 10) : 10;
+    timer.totalSeconds = mins*60;
+    timer.remainingSeconds = mins*60;
+    pillFocus.classList.toggle('active', mode==='focus');
+    pillBreak.classList.toggle('active', mode==='break');
+    durationInputWrap.style.display = mode === 'focus' ? 'flex' : 'none';
+    stageEyebrowText.textContent = mode === 'focus' ? 'One thing at a time' : 'Step away. Breathe.';
+    updateRingDisplay();
+  }
+
+  function updateRingDisplay(){
+    ringTime.textContent = formatTime(timer.remainingSeconds);
+    const progress = timer.totalSeconds > 0 ? (timer.totalSeconds - timer.remainingSeconds) / timer.totalSeconds : 0;
+    const offset = RING_CIRCUMFERENCE * (1 - progress);
+    ringFg.style.strokeDasharray = RING_CIRCUMFERENCE;
+    ringFg.style.strokeDashoffset = offset;
+    ringFg.classList.toggle('break', timer.mode === 'break');
+    ringFg.classList.toggle('breathing', timer.status === 'running');
+
+    if(timer.status === 'idle') ringLabel.textContent = timer.mode === 'focus' ? 'ready' : 'break ready';
+    else if(timer.status === 'running') ringLabel.textContent = timer.mode === 'focus' ? 'focusing' : 'on break';
+    else if(timer.status === 'paused') ringLabel.textContent = 'paused';
+  }
+
+  function tick(){
+    timer.remainingSeconds -= 1;
+
+    if(timer.mode === 'focus' && timer.status === 'running'){
+      const day = ensureToday();
+      day.focusSeconds += 1;
+      saveState();
+      renderMetrics();
+    }
+
+    if(timer.remainingSeconds <= 0){
+      completeSession();
+      return;
+    }
+    updateRingDisplay();
+  }
+
+  function completeSession(){
+    clearInterval(timer.intervalId);
+    timer.intervalId = null;
+    playAlert();
+
+    if(timer.mode === 'focus'){
+      const day = ensureToday();
+      day.sessions += 1;
+      bumpStreakIfNeeded();
+      saveState();
+      showToast('Focus session complete — time for a break');
+      timer.status = 'idle';
+      setMode('break');
+      // auto-start break per FR-018
+      startTimer();
+    } else {
+      showToast('Break finished — ready when you are');
+      timer.status = 'idle';
+      setMode('focus');
+      renderAll();
+    }
+  }
+
+  function bumpStreakIfNeeded(){
+    // first qualifying session of the day bumps streak once
+    const t = todayStr();
+    if(state.lastStreakDay !== t){
+      state.streak = (state.streak||0) + 1;
+      state.lastStreakDay = t;
+    }
+  }
+
+  function startTimer(){
+    if(timer.status === 'running') return;
+    timer.status = 'running';
+    clearInterval(timer.intervalId);
+    timer.intervalId = setInterval(tick, 1000);
+    renderControls();
+    updateRingDisplay();
+    stageEl.classList.toggle('is-active', timer.mode==='focus');
+  }
+
+  function pauseTimer(){
+    if(timer.status !== 'running') return;
+    timer.status = 'paused';
+    clearInterval(timer.intervalId);
+    timer.intervalId = null;
+    renderControls();
+    updateRingDisplay();
+  }
+
+  function resumeTimer(){
+    if(timer.status !== 'paused') return;
+    startTimer();
+  }
+
+  function stopTimer(){
+    clearInterval(timer.intervalId);
+    timer.intervalId = null;
+    timer.status = 'idle';
+    const mins = timer.mode === 'focus' ? parseInt(durationInput.value || '50',10) : 10;
+    timer.totalSeconds = mins*60;
+    timer.remainingSeconds = mins*60;
+    stageEl.classList.remove('is-active');
+    renderControls();
+    updateRingDisplay();
+  }
+
+  function skipBreak(){
+    clearInterval(timer.intervalId);
+    timer.intervalId = null;
+    timer.status = 'idle';
+    setMode('focus');
+    renderAll();
+  }
+
+  function renderControls(){
+    const running = timer.status === 'running';
+    const paused = timer.status === 'paused';
+    const idle = timer.status === 'idle';
+
+    if(timer.mode === 'focus'){
+      startBtn.style.display = idle ? 'inline-block' : 'none';
+      pauseBtn.style.display = running ? 'inline-block' : 'none';
+      resumeBtn.style.display = paused ? 'inline-block' : 'none';
+      stopBtn.style.display = (running||paused) ? 'inline-block' : 'none';
+      skipBreakBtn.style.display = 'none';
+      pillFocus.disabled = running || paused;
+      pillBreak.disabled = running || paused;
+      startBtn.disabled = !state.currentTaskId;
+    } else {
+      startBtn.style.display = 'none';
+      pauseBtn.style.display = running ? 'inline-block' : 'none';
+      resumeBtn.style.display = paused ? 'inline-block' : 'none';
+      stopBtn.style.display = 'none';
+      skipBreakBtn.style.display = (running||paused) ? 'inline-block' : 'none';
+    }
+  }
+
+  /* ---------------- Tasks ---------------- */
+  function addTask(name){
+    name = name.trim();
+    if(!name) return;
+    state.tasks.push({ id: 't'+Date.now()+Math.random().toString(36).slice(2,6), name, done:false });
+    saveState();
+    renderTasks();
+  }
+
+  function deleteTask(id){
+    state.tasks = state.tasks.filter(t=>t.id!==id);
+    if(state.currentTaskId === id) state.currentTaskId = null;
+    saveState();
+    renderAll();
+  }
+
+  function toggleDone(id){
+    const t = state.tasks.find(t=>t.id===id);
+    if(!t) return;
+    const wasDone = t.done;
+    t.done = !t.done;
+    const day = ensureToday();
+    day.tasksDone += t.done ? 1 : -1;
+    day.tasksDone = Math.max(0, day.tasksDone);
+    if(t.done && !wasDone) bumpStreakIfNeeded();
+    saveState();
+    renderAll();
+  }
+
+  function renameTask(id, name){
+    const t = state.tasks.find(t=>t.id===id);
+    if(!t) return;
+    t.name = name.trim() || t.name;
+    saveState();
+  }
+
+  function pickCurrent(id){
+    state.currentTaskId = (state.currentTaskId === id) ? null : id;
+    saveState();
+    renderAll();
+  }
+
+  function renderTasks(){
+    priorityList.innerHTML = '';
+    const top = state.tasks; // FR-002: top 3 priorities displayed prominently in dashboard summary; full list manageable here
+    taskEmptyNote.style.display = top.length === 0 ? 'block' : 'none';
+
+    const doneCount = state.tasks.filter(t=>t.done).length;
+    taskCountLabel.textContent = `${doneCount} of ${state.tasks.length} done`;
+
+    top.forEach(t=>{
+      const li = document.createElement('li');
+      li.className = 'priority-row' + (t.done ? ' is-done':'') + (state.currentTaskId===t.id ? ' is-current':'');
+
+      const check = document.createElement('button');
+      check.className = 'check' + (t.done ? ' checked':'');
+      check.setAttribute('aria-label', t.done ? 'Mark task incomplete' : 'Mark task complete');
+      check.onclick = ()=>toggleDone(t.id);
+
+      const nameInput = document.createElement('input');
+      nameInput.className = 'task-name';
+      nameInput.value = t.name;
+      nameInput.setAttribute('aria-label','Task name');
+      nameInput.addEventListener('change', (e)=>renameTask(t.id, e.target.value));
+
+      const pickBtn = document.createElement('button');
+      pickBtn.className = 'pick-btn' + (state.currentTaskId===t.id ? ' is-picked':'');
+      pickBtn.textContent = state.currentTaskId===t.id ? 'Focused' : 'Focus this';
+      pickBtn.onclick = ()=>pickCurrent(t.id);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'del-btn';
+      delBtn.setAttribute('aria-label','Delete task');
+      delBtn.textContent = '×';
+      delBtn.onclick = ()=>deleteTask(t.id);
+
+      li.appendChild(check);
+      li.appendChild(nameInput);
+      li.appendChild(pickBtn);
+      li.appendChild(delBtn);
+      priorityList.appendChild(li);
+    });
+
+    // current task display in stage
+    const current = state.tasks.find(t=>t.id===state.currentTaskId);
+    if(current){
+      currentTaskTitle.textContent = current.name;
+      currentTaskTitle.classList.remove('empty');
+    } else {
+      currentTaskTitle.textContent = 'Choose one task below to begin';
+      currentTaskTitle.classList.add('empty');
+    }
+    renderControls();
+  }
+
+  /* ---------------- Metrics ---------------- */
+  function renderMetrics(){
+    const day = ensureToday();
+    const hrs = Math.floor(day.focusSeconds/3600);
+    const mins = Math.floor((day.focusSeconds%3600)/60);
+    el('metricFocusHours').textContent = `${hrs}h ${mins}m`;
+    el('metricSessions').textContent = day.sessions;
+    el('metricTasksDone').textContent = day.tasksDone;
+
+    const totalTasks = state.tasks.length || 1;
+    const doneTasks = state.tasks.filter(t=>t.done).length;
+    const score = Math.round((doneTasks/totalTasks)*100);
+    el('metricScore').textContent = `${state.tasks.length ? score : 0}%`;
+
+    streakCount.textContent = state.streak || 0;
+
+    // distractions today
+    el('distractionTodayCount').textContent = day.distractions.length;
+
+    renderSparkline();
+  }
+
+  function renderSparkline(){
+    const sparkRow = el('sparkRow');
+    const sparkLabels = el('sparkLabels');
+    sparkRow.innerHTML = '';
+    sparkLabels.innerHTML = '';
+
+    const days = [];
+    for(let i=6;i>=0;i--){
+      const d = new Date();
+      d.setDate(d.getDate()-i);
+      const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      days.push({ key, label: d.toLocaleDateString(undefined,{weekday:'narrow'}), isToday: i===0 });
+    }
+    const maxSeconds = Math.max(60*60, ...days.map(d => (state.days[d.key]?.focusSeconds)||0));
+
+    days.forEach(d=>{
+      const secs = (state.days[d.key]?.focusSeconds) || 0;
+      const pct = Math.max(secs>0?6:2, Math.round((secs/maxSeconds)*100));
+      const bar = document.createElement('div');
+      bar.className = 'spark-bar' + (secs>0?' has-data':'') + (d.isToday?' today':'');
+      bar.style.height = pct+'%';
+      bar.title = `${d.key}: ${(secs/3600).toFixed(1)}h`;
+      sparkRow.appendChild(bar);
+
+      const lab = document.createElement('span');
+      lab.textContent = d.label;
+      sparkLabels.appendChild(lab);
+    });
+  }
+
+  /* ---------------- Distractions ---------------- */
+  function logDistraction(){
+    const sel = el('distractionSelect');
+    const day = ensureToday();
+    day.distractions.push({ type: sel.value, t: Date.now() });
+    saveState();
+    renderMetrics();
+    showToast('Distraction logged — back to it');
+  }
+
+  /* ---------------- Wire up events ---------------- */
+  startBtn.addEventListener('click', ()=>{
+    if(!state.currentTaskId){ showToast('Pick a task first'); return; }
+    startTimer();
+  });
+  pauseBtn.addEventListener('click', pauseTimer);
+  resumeBtn.addEventListener('click', resumeTimer);
+  stopBtn.addEventListener('click', stopTimer);
+  skipBreakBtn.addEventListener('click', skipBreak);
+
+  pillFocus.addEventListener('click', ()=> setMode('focus'));
+  pillBreak.addEventListener('click', ()=> setMode('break'));
+
+  durationInput.addEventListener('change', ()=>{
+    let v = parseInt(durationInput.value,10);
+    if(isNaN(v) || v<1) v=1;
+    if(v>180) v=180;
+    durationInput.value = v;
+    pillFocus.textContent = `Focus · ${v}m`;
+    if(timer.mode==='focus' && timer.status==='idle'){
+      timer.totalSeconds = v*60;
+      timer.remainingSeconds = v*60;
+      updateRingDisplay();
+    }
+  });
+
+  addTaskBtn.addEventListener('click', ()=>{
+    addTask(newTaskInput.value);
+    newTaskInput.value='';
+    newTaskInput.focus();
+  });
+  newTaskInput.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ addTask(newTaskInput.value); newTaskInput.value=''; }
+  });
+
+  el('logDistractionBtn').addEventListener('click', logDistraction);
+
+  /* ---------------- Init ---------------- */
+  function renderAll(){
+    renderTasks();
+    renderMetrics();
+  }
+
+  function init(){
+    ensureToday();
+    todayDateEl.textContent = new Date().toLocaleDateString(undefined,{ weekday:'long', month:'long', day:'numeric' });
+    pillFocus.textContent = `Focus · ${parseInt(durationInput.value,10)}m`;
+    setMode('focus');
+    renderAll();
+    updateRingDisplay();
+
+    // seed example tasks only on very first run
+    if(state.tasks.length===0 && !localStorage.getItem(STORE_KEY)){
+      addTask('Draft project outline');
+      addTask('Reply to priority emails');
+      addTask('30 min deep work block');
+    }
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('Service Worker Registered'))
+        .catch(err => console.log('SW Error:', err));
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
